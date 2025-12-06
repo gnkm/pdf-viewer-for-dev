@@ -15,19 +15,19 @@ void main() {
 
       final notifier = container.read(viewerProvider.notifier);
       final keyService = KeyBindingService();
-      
+
       // 初期状態では検索窓は非表示
       expect(container.read(viewerProvider).isSearchActive, false);
-      
+
       // 「/」キーがViewerAction.searchにマッピングされることを確認
       final input = KeyInput(PhysicalKeyboardKey.slash);
       final action = keyService.getAction(input, AppMode.vim);
       expect(action, ViewerAction.search);
-      
+
       // ViewerAction.searchがtoggleSearch()を呼び出すことを確認
       // （実際の実装では_handleActionがtoggleSearch()を呼び出す）
       notifier.toggleSearch();
-      
+
       // 検索窓が表示される（isSearchActiveがtrueになる）ことを確認
       expect(container.read(viewerProvider).isSearchActive, true);
     });
@@ -37,11 +37,11 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 1回目の「/」キーで検索窓を開く
       notifier.toggleSearch();
       expect(container.read(viewerProvider).isSearchActive, true);
-      
+
       // 2回目の「/」キーで検索窓を閉じる
       notifier.toggleSearch();
       expect(container.read(viewerProvider).isSearchActive, false);
@@ -52,11 +52,11 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索窓を開く
       notifier.toggleSearch();
       expect(container.read(viewerProvider).isSearchActive, true);
-      
+
       // 検索窓が開いている状態で「/」キーを押すと閉じる
       notifier.toggleSearch();
       expect(container.read(viewerProvider).isSearchActive, false);
@@ -69,7 +69,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索結果を設定
       final matches = [
         const SearchMatch(pageNumber: 1, matchIndex: 10),
@@ -79,17 +79,17 @@ void main() {
       notifier.setSearchQuery('test');
       notifier.setSearchMatches(matches);
       notifier.setCurrentSearchMatchIndex(0);
-      
+
       // 検索をアクティブにする
       notifier.toggleSearch();
-      
+
       // 初期状態を確認
       expect(container.read(viewerProvider).currentSearchMatchIndex, 0);
       expect(container.read(viewerProvider).isSearchActive, true);
-      
+
       // nキーで次の検索結果に移動（nextSearchMatchを直接呼び出す）
       notifier.nextSearchMatch();
-      
+
       // 次の検索結果に移動したことを確認
       final state = container.read(viewerProvider);
       expect(state.currentSearchMatchIndex, 1);
@@ -101,7 +101,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索結果を設定
       final matches = [
         const SearchMatch(pageNumber: 1, matchIndex: 10),
@@ -111,17 +111,17 @@ void main() {
       notifier.setSearchQuery('test');
       notifier.setSearchMatches(matches);
       notifier.setCurrentSearchMatchIndex(2);
-      
+
       // 検索をアクティブにする
       notifier.toggleSearch();
-      
+
       // 初期状態を確認
       expect(container.read(viewerProvider).currentSearchMatchIndex, 2);
       expect(container.read(viewerProvider).isSearchActive, true);
-      
+
       // Nキーで前の検索結果に移動（previousSearchMatchを直接呼び出す）
       notifier.previousSearchMatch();
-      
+
       // 前の検索結果に移動したことを確認
       final state = container.read(viewerProvider);
       expect(state.currentSearchMatchIndex, 1);
@@ -133,7 +133,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索結果を設定
       final matches = [
         const SearchMatch(pageNumber: 1, matchIndex: 10),
@@ -142,16 +142,16 @@ void main() {
       notifier.setSearchQuery('test');
       notifier.setSearchMatches(matches);
       notifier.setCurrentSearchMatchIndex(1);
-      
+
       // 検索をアクティブにする
       notifier.toggleSearch();
-      
+
       // 最後の検索結果にいることを確認
       expect(container.read(viewerProvider).currentSearchMatchIndex, 1);
-      
+
       // nキーで次の検索結果に移動（最初に戻る）
       notifier.nextSearchMatch();
-      
+
       // 最初の検索結果に戻ったことを確認
       final state = container.read(viewerProvider);
       expect(state.currentSearchMatchIndex, 0);
@@ -163,7 +163,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索結果を設定
       final matches = [
         const SearchMatch(pageNumber: 1, matchIndex: 10),
@@ -172,16 +172,16 @@ void main() {
       notifier.setSearchQuery('test');
       notifier.setSearchMatches(matches);
       notifier.setCurrentSearchMatchIndex(0);
-      
+
       // 検索をアクティブにする
       notifier.toggleSearch();
-      
+
       // 最初の検索結果にいることを確認
       expect(container.read(viewerProvider).currentSearchMatchIndex, 0);
-      
+
       // Nキーで前の検索結果に移動（最後に戻る）
       notifier.previousSearchMatch();
-      
+
       // 最後の検索結果に戻ったことを確認
       final state = container.read(viewerProvider);
       expect(state.currentSearchMatchIndex, 1);
@@ -193,7 +193,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索結果を設定
       final matches = [
         const SearchMatch(pageNumber: 1, matchIndex: 10),
@@ -202,10 +202,10 @@ void main() {
       notifier.setSearchQuery('test');
       notifier.setSearchMatches(matches);
       notifier.setCurrentSearchMatchIndex(0);
-      
+
       // 検索を非アクティブにする（デフォルトで非アクティブ）
       expect(container.read(viewerProvider).isSearchActive, false);
-      
+
       // 検索が非アクティブな状態では、nキーで検索ナビゲーションしない
       // （実際のキーイベント処理では、検索が非アクティブな場合は
       // handlePdfViewerKeyEventでnキーが無視される）
@@ -221,21 +221,21 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(viewerProvider.notifier);
-      
+
       // 検索クエリを設定するが、検索結果は空
       notifier.setSearchQuery('test');
       notifier.setSearchMatches([]);
-      
+
       // 検索をアクティブにする
       notifier.toggleSearch();
-      
+
       // 検索結果がないことを確認
       expect(container.read(viewerProvider).searchMatches, isEmpty);
       expect(container.read(viewerProvider).currentSearchMatchIndex, isNull);
-      
+
       // nキーで次の検索結果に移動しようとしても、何も起こらない
       notifier.nextSearchMatch();
-      
+
       // 状態が変わらないことを確認
       final state = container.read(viewerProvider);
       expect(state.searchMatches, isEmpty);
@@ -243,4 +243,3 @@ void main() {
     });
   });
 }
-

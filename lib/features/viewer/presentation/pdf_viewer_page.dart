@@ -184,7 +184,6 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         rect: expandedRect,
         anchor: PdfPageAnchor.center,
       );
-
     });
   }
 
@@ -221,7 +220,8 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         );
 
         // 現在のマッチかどうかで色を変える
-        final isActiveMatch = currentMatchIndex != null &&
+        final isActiveMatch =
+            currentMatchIndex != null &&
             state.searchMatches.indexOf(match) == currentMatchIndex;
         final highlightColor = isActiveMatch
             ? Colors.orange.withValues(alpha: 0.5)
@@ -537,21 +537,20 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
               controller: _controller,
               params: PdfViewerParams(
                 // 検索結果のハイライト色を設定
-                matchTextColor: state.searchQuery != null &&
-                        state.searchMatches.isNotEmpty
+                matchTextColor:
+                    state.searchQuery != null && state.searchMatches.isNotEmpty
                     ? Colors.yellow.withValues(alpha: 0.3)
                     : null,
-                activeMatchTextColor: state.searchQuery != null &&
+                activeMatchTextColor:
+                    state.searchQuery != null &&
                         state.searchMatches.isNotEmpty &&
                         state.currentSearchMatchIndex != null
                     ? Colors.orange.withValues(alpha: 0.5)
                     : null,
                 // 検索結果をハイライト表示するためのカスタムペイントコールバック
-                pagePaintCallbacks: state.searchQuery != null &&
-                        state.searchMatches.isNotEmpty
-                    ? [
-                        _buildSearchHighlightCallback(state),
-                      ]
+                pagePaintCallbacks:
+                    state.searchQuery != null && state.searchMatches.isNotEmpty
+                    ? [_buildSearchHighlightCallback(state)]
                     : null,
                 onPageChanged: (page) {
                   if (page != null) {
@@ -579,17 +578,24 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                           onKeyEvent: (node, event) {
                             // n/Nキーで検索ナビゲーション
                             if (event is KeyDownEvent) {
-                              final isShift = HardwareKeyboard.instance.isShiftPressed;
-                              final isControl = HardwareKeyboard.instance.isControlPressed;
-                              final isMeta = HardwareKeyboard.instance.isMetaPressed;
-                              final isAlt = HardwareKeyboard.instance.isAltPressed;
+                              final isShift =
+                                  HardwareKeyboard.instance.isShiftPressed;
+                              final isControl =
+                                  HardwareKeyboard.instance.isControlPressed;
+                              final isMeta =
+                                  HardwareKeyboard.instance.isMetaPressed;
+                              final isAlt =
+                                  HardwareKeyboard.instance.isAltPressed;
 
-                              if (event.physicalKey == PhysicalKeyboardKey.keyN &&
+                              if (event.physicalKey ==
+                                      PhysicalKeyboardKey.keyN &&
                                   !isControl &&
                                   !isMeta &&
                                   !isAlt) {
                                 if (isShift) {
-                                  _handleAction(ViewerAction.previousSearchMatch);
+                                  _handleAction(
+                                    ViewerAction.previousSearchMatch,
+                                  );
                                 } else {
                                   _handleAction(ViewerAction.nextSearchMatch);
                                 }
