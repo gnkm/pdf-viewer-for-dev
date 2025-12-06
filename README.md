@@ -75,5 +75,38 @@ dart run scripts/pre_commit.dart
   - 脆弱性スキャン (OSVデータベースを使用)
   - パッケージの信頼性確認 (pub.dev APIを使用)
 
+### GitHub Actions CI
+
+プッシュやプルリクエスト時に自動的に以下のチェックが実行されます：
+
+- **コード品質チェック**:
+  - Lintチェック (`flutter analyze`)
+  - フォーマットチェック (`dart format`)
+  - テスト実行 (`flutter test`)
+
+- **ビルド確認**:
+  - macOS ビルド
+  - Windows ビルド
+  - Linux ビルド
+
+- **セキュリティチェック**（警告のみ）:
+  - 依存関係の更新確認
+  - 脆弱性スキャン
+
+### リリース
+
+リリースはGitHub Actionsで自動的にビルドされます。タグを作成すると、各プラットフォームのビルド成果物がGitHub Releasesに自動アップロードされます。
+
+```bash
+# リリースタグを作成
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+タグがプッシュされると、以下のワークフローが自動実行されます：
+- macOS、Windows、Linuxの各プラットフォームでリリースビルド
+- ビルド成果物をGitHub Releasesに自動アップロード
+- リリースノートを自動生成
+
 ### 備考
 - **WASM に関する警告**: デバッグビルド時に "Bundling PDFium WASM" という警告が表示されることがありますが、デスクトップ開発においては無視して問題ありません。
