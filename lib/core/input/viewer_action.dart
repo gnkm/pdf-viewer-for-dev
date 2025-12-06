@@ -1,0 +1,23 @@
+enum ViewerAction {
+  nextPage,
+  previousPage,
+  firstPage,
+  lastPage,
+  search,
+  zoomIn,
+  zoomOut,
+  zoomReset,
+  openFile,
+  toggleMode,
+  fitToScreen,
+  
+  jumpPage10,
+  jumpPage20,
+  jumpPage30,
+  jumpPage40,
+  jumpPage50,
+  jumpPage60,
+  jumpPage70,
+  jumpPage80,
+  jumpPage90,
+}
