@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdf_viewer_for_dev/core/config/app_mode.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_models.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_providers.dart';
 import 'package:pdf_viewer_for_dev/core/input/viewer_action.dart';
@@ -18,21 +20,46 @@ class PdfViewerPage extends ConsumerStatefulWidget {
 class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
   // Removed: late final PdfTextSearcher _textSearcher;
+  
+  // ggキーシーケンス検出用
+  bool _waitingForSecondG = false;
+  Timer? _ggSequenceTimer;
 
   @override
   void initState() {
     super.initState();
     // Removed: _textSearcher = PdfTextSearcher(_controller);
   }
-
+  
   @override
   void dispose() {
-    // Removed: _textSearcher.dispose();
-    // _controller.dispose(); // Controller is managed by widget if created here? No, pdfrx controller usually doesn't need dispose if local? 
-    // Wait, PdfViewerController has no dispose method in this version?
-    // Library source says: PdfViewerController usually extends ChangeNotifier.
-    // If it has no dispose, remove it.
+    _ggSequenceTimer?.cancel();
     super.dispose();
+  }
+  
+  void _resetGgSequence() {
+    _waitingForSecondG = false;
+    _ggSequenceTimer?.cancel();
+    _ggSequenceTimer = null;
+  }
+  
+  void _handleGKey() {
+    if (_waitingForSecondG) {
+      // 2回目のgキーが押された -> ggシーケンス完了
+      _resetGgSequence();
+      _handleAction(ViewerAction.firstPage);
+    } else {
+      // 1回目のgキーが押された -> 2回目を待つ
+      _waitingForSecondG = true;
+      _ggSequenceTimer = Timer(const Duration(milliseconds: 500), () {
+        // タイムアウトしたら状態をリセット
+        if (mounted) {
+          setState(() {
+            _waitingForSecondG = false;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _pickFile() async {
@@ -109,6 +136,22 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                    isAlt: HardwareKeyboard.instance.isAltPressed,
                    isShift: HardwareKeyboard.instance.isShiftPressed,
                  );
+                 
+                 // Vimモードでggシーケンス検出（修飾キーなしのgキーのみ）
+                 if (state.mode == AppMode.vim &&
+                     event.physicalKey == PhysicalKeyboardKey.keyG &&
+                     !HardwareKeyboard.instance.isControlPressed &&
+                     !HardwareKeyboard.instance.isMetaPressed &&
+                     !HardwareKeyboard.instance.isAltPressed &&
+                     !HardwareKeyboard.instance.isShiftPressed) {
+                   _handleGKey();
+                   return KeyEventResult.handled;
+                 }
+                 
+                 // 他のキーが押されたらggシーケンスをリセット
+                 if (_waitingForSecondG) {
+                   _resetGgSequence();
+                 }
                  
                  final action = keyService.getAction(input, state.mode);
                  if (action != null) {

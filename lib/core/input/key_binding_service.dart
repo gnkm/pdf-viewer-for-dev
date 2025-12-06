@@ -39,7 +39,7 @@ class KeyBindingService {
       // Navigation
       const KeyInput(PhysicalKeyboardKey.keyJ): ViewerAction.nextPage,
       const KeyInput(PhysicalKeyboardKey.keyK): ViewerAction.previousPage,
-      // Note: gg (firstPage) is not implemented yet - requires key sequence detection
+      // Note: gg (firstPage) is handled by key sequence detection in PdfViewerPage
       const KeyInput(PhysicalKeyboardKey.keyG, isShift: true): ViewerAction.lastPage, // G -> Shift + g
 
       // Search
