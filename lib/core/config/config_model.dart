@@ -8,15 +8,16 @@ part 'config_model.g.dart';
 abstract class ConfigModel with _$ConfigModel {
   const factory ConfigModel({
     // ignore: invalid_annotation_target
-    @Default(AppMode.emacs) 
-    @JsonKey(name: 'default_mode', fromJson: _modeFromStr) 
+    @Default(AppMode.emacs)
+    @JsonKey(name: 'default_mode', fromJson: _modeFromStr)
     AppMode defaultMode,
-    
+
     @Default('system') String theme,
     LastSession? lastSession,
   }) = _ConfigModel;
 
-  factory ConfigModel.fromJson(Map<String, dynamic> json) => _$ConfigModelFromJson(json);
+  factory ConfigModel.fromJson(Map<String, dynamic> json) =>
+      _$ConfigModelFromJson(json);
 }
 
 @freezed
@@ -28,7 +29,8 @@ abstract class LastSession with _$LastSession {
     // Add other state if needed
   }) = _LastSession;
 
-  factory LastSession.fromJson(Map<String, dynamic> json) => _$LastSessionFromJson(json);
+  factory LastSession.fromJson(Map<String, dynamic> json) =>
+      _$LastSessionFromJson(json);
 }
 
 AppMode _modeFromStr(dynamic value) {

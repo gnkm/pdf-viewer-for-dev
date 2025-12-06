@@ -19,11 +19,12 @@ abstract class ViewerState with _$ViewerState {
 
 @riverpod
 class ViewerNotifier extends _$ViewerNotifier {
-// ...
+  // ...
   void toggleSearch() {
     state = state.copyWith(isSearchActive: !state.isSearchActive);
   }
-// ...
+
+  // ...
   @override
   ViewerState build() {
     return const ViewerState();

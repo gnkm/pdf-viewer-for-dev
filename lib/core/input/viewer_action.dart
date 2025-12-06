@@ -10,7 +10,7 @@ enum ViewerAction {
   openFile,
   toggleMode,
   fitToScreen,
-  
+
   jumpPage10,
   jumpPage20,
   jumpPage30,

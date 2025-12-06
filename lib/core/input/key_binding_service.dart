@@ -17,22 +17,36 @@ class KeyBindingService {
   void _initBindings() {
     _bindings[AppMode.emacs] = {
       // Navigation
-      const KeyInput(PhysicalKeyboardKey.keyN, isControl: true): ViewerAction.nextPage,
-      const KeyInput(PhysicalKeyboardKey.keyP, isControl: true): ViewerAction.previousPage,
-      const KeyInput(PhysicalKeyboardKey.comma, isAlt: true, isShift: true): ViewerAction.firstPage, // M-<
-      const KeyInput(PhysicalKeyboardKey.period, isAlt: true, isShift: true): ViewerAction.lastPage, // M->
-      
+      const KeyInput(PhysicalKeyboardKey.keyN, isControl: true):
+          ViewerAction.nextPage,
+      const KeyInput(PhysicalKeyboardKey.keyP, isControl: true):
+          ViewerAction.previousPage,
+      const KeyInput(PhysicalKeyboardKey.comma, isAlt: true, isShift: true):
+          ViewerAction.firstPage, // M-<
+      const KeyInput(PhysicalKeyboardKey.period, isAlt: true, isShift: true):
+          ViewerAction.lastPage, // M->
       // Search
-      const KeyInput(PhysicalKeyboardKey.keyS, isControl: true): ViewerAction.search,
-      
+      const KeyInput(PhysicalKeyboardKey.keyS, isControl: true):
+          ViewerAction.search,
+
       // Zoom operations (Cmd + +/-, Cmd + 0, Cmd + Shift + ;)
-      const KeyInput(PhysicalKeyboardKey.equal, isMeta: true, isShift: true): ViewerAction.zoomIn, // Cmd + +
-      const KeyInput(PhysicalKeyboardKey.numpadAdd, isMeta: true): ViewerAction.zoomIn, // Cmd + + (numpad)
-      const KeyInput(PhysicalKeyboardKey.semicolon, isMeta: true, isShift: true): ViewerAction.zoomIn, // Cmd + Shift + ;
-      const KeyInput(PhysicalKeyboardKey.minus, isMeta: true): ViewerAction.zoomOut, // Cmd + -
-      const KeyInput(PhysicalKeyboardKey.numpadSubtract, isMeta: true): ViewerAction.zoomOut, // Cmd + - (numpad)
-      const KeyInput(PhysicalKeyboardKey.digit0, isMeta: true): ViewerAction.zoomReset, // Cmd + 0
-      const KeyInput(PhysicalKeyboardKey.numpad0, isMeta: true): ViewerAction.zoomReset, // Cmd + 0 (numpad)
+      const KeyInput(PhysicalKeyboardKey.equal, isMeta: true, isShift: true):
+          ViewerAction.zoomIn, // Cmd + +
+      const KeyInput(PhysicalKeyboardKey.numpadAdd, isMeta: true):
+          ViewerAction.zoomIn, // Cmd + + (numpad)
+      const KeyInput(
+        PhysicalKeyboardKey.semicolon,
+        isMeta: true,
+        isShift: true,
+      ): ViewerAction.zoomIn, // Cmd + Shift + ;
+      const KeyInput(PhysicalKeyboardKey.minus, isMeta: true):
+          ViewerAction.zoomOut, // Cmd + -
+      const KeyInput(PhysicalKeyboardKey.numpadSubtract, isMeta: true):
+          ViewerAction.zoomOut, // Cmd + - (numpad)
+      const KeyInput(PhysicalKeyboardKey.digit0, isMeta: true):
+          ViewerAction.zoomReset, // Cmd + 0
+      const KeyInput(PhysicalKeyboardKey.numpad0, isMeta: true):
+          ViewerAction.zoomReset, // Cmd + 0 (numpad)
     };
 
     _bindings[AppMode.vim] = {
@@ -40,8 +54,8 @@ class KeyBindingService {
       const KeyInput(PhysicalKeyboardKey.keyJ): ViewerAction.nextPage,
       const KeyInput(PhysicalKeyboardKey.keyK): ViewerAction.previousPage,
       // Note: gg (firstPage) is handled by key sequence detection in PdfViewerPage
-      const KeyInput(PhysicalKeyboardKey.keyG, isShift: true): ViewerAction.lastPage, // G -> Shift + g
-
+      const KeyInput(PhysicalKeyboardKey.keyG, isShift: true):
+          ViewerAction.lastPage, // G -> Shift + g
       // Search
       const KeyInput(PhysicalKeyboardKey.slash): ViewerAction.search,
 
@@ -55,20 +69,26 @@ class KeyBindingService {
       const KeyInput(PhysicalKeyboardKey.digit7): ViewerAction.jumpPage70,
       const KeyInput(PhysicalKeyboardKey.digit8): ViewerAction.jumpPage80,
       const KeyInput(PhysicalKeyboardKey.digit9): ViewerAction.jumpPage90,
-      
+
       // Arrow Keys
       const KeyInput(PhysicalKeyboardKey.arrowDown): ViewerAction.nextPage,
       const KeyInput(PhysicalKeyboardKey.arrowUp): ViewerAction.previousPage,
-      
+
       // Zoom operations (Ctrl + +/-, Ctrl + 0)
-      const KeyInput(PhysicalKeyboardKey.equal, isControl: true, isShift: true): ViewerAction.zoomIn, // Ctrl + +
-      const KeyInput(PhysicalKeyboardKey.numpadAdd, isControl: true): ViewerAction.zoomIn, // Ctrl + + (numpad)
-      const KeyInput(PhysicalKeyboardKey.minus, isControl: true): ViewerAction.zoomOut, // Ctrl + -
-      const KeyInput(PhysicalKeyboardKey.numpadSubtract, isControl: true): ViewerAction.zoomOut, // Ctrl + - (numpad)
-      const KeyInput(PhysicalKeyboardKey.digit0, isControl: true): ViewerAction.zoomReset, // Ctrl + 0
-      const KeyInput(PhysicalKeyboardKey.numpad0, isControl: true): ViewerAction.zoomReset, // Ctrl + 0 (numpad)
+      const KeyInput(PhysicalKeyboardKey.equal, isControl: true, isShift: true):
+          ViewerAction.zoomIn, // Ctrl + +
+      const KeyInput(PhysicalKeyboardKey.numpadAdd, isControl: true):
+          ViewerAction.zoomIn, // Ctrl + + (numpad)
+      const KeyInput(PhysicalKeyboardKey.minus, isControl: true):
+          ViewerAction.zoomOut, // Ctrl + -
+      const KeyInput(PhysicalKeyboardKey.numpadSubtract, isControl: true):
+          ViewerAction.zoomOut, // Ctrl + - (numpad)
+      const KeyInput(PhysicalKeyboardKey.digit0, isControl: true):
+          ViewerAction.zoomReset, // Ctrl + 0
+      const KeyInput(PhysicalKeyboardKey.numpad0, isControl: true):
+          ViewerAction.zoomReset, // Ctrl + 0 (numpad)
     };
-    
+
     // Copy numeric keys to Emacs as well since requirements list them for both (or implies common)
     _bindings[AppMode.emacs]!.addAll({
       const KeyInput(PhysicalKeyboardKey.digit1): ViewerAction.jumpPage10,

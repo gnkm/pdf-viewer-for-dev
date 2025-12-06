@@ -34,7 +34,7 @@ theme = 123
     test('toToml generates valid TOML string', () {
       const config = ConfigModel(defaultMode: AppMode.vim, theme: 'light');
       final toml = ConfigService.toToml(config);
-      
+
       expect(toml, contains("default_mode = 'vim'"));
       expect(toml, contains("theme = 'light'"));
     });

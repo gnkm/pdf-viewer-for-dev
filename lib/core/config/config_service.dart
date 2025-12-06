@@ -77,7 +77,7 @@ class ConfigService {
     }
 
     if (home != null) {
-       return File('$home/.config/pdf-viewer-for-dev/config.toml');
+      return File('$home/.config/pdf-viewer-for-dev/config.toml');
     }
     // Fallback to app support if home not found (unlikely)
     final dir = await getApplicationSupportDirectory();

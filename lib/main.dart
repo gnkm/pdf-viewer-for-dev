@@ -33,7 +33,7 @@ void main(List<String> args) async {
     titleBarStyle: TitleBarStyle.normal,
     title: 'PDF Viewer for Developers',
   );
-  
+
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
@@ -50,11 +50,7 @@ class MyApp extends ConsumerStatefulWidget {
   final ConfigModel config;
   final String? initialFile;
 
-  const MyApp({
-    super.key, 
-    required this.config, 
-    this.initialFile,
-  });
+  const MyApp({super.key, required this.config, this.initialFile});
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
@@ -65,21 +61,21 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    
+
     // Initialize state
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notifier = ref.read(viewerProvider.notifier);
       notifier.setMode(widget.config.defaultMode);
-      
+
       // Load last session if initialFile is null
       if (widget.initialFile != null) {
         notifier.loadFile(widget.initialFile!);
       } else if (widget.config.lastSession != null) {
         final session = widget.config.lastSession!;
         if (session.filePath != null && File(session.filePath!).existsSync()) {
-             notifier.loadFile(session.filePath!);
-             if (session.pageNumber != null) notifier.setPage(session.pageNumber!);
-             if (session.zoom != null) notifier.setZoom(session.zoom!);
+          notifier.loadFile(session.filePath!);
+          if (session.pageNumber != null) notifier.setPage(session.pageNumber!);
+          if (session.zoom != null) notifier.setZoom(session.zoom!);
         }
       }
     });
@@ -120,7 +116,10 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.dark),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
       ),
       themeMode: _getThemeMode(widget.config.theme),
@@ -130,9 +129,12 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
 
   ThemeMode _getThemeMode(String theme) {
     switch (theme) {
-      case 'dark': return ThemeMode.dark;
-      case 'light': return ThemeMode.light;
-      default: return ThemeMode.system;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'light':
+        return ThemeMode.light;
+      default:
+        return ThemeMode.system;
     }
   }
 }

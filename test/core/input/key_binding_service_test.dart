@@ -16,7 +16,10 @@ void main() {
 
     test('Emacs: C-p maps to previousPage', () {
       final input = KeyInput(PhysicalKeyboardKey.keyP, isControl: true);
-      expect(service.getAction(input, AppMode.emacs), ViewerAction.previousPage);
+      expect(
+        service.getAction(input, AppMode.emacs),
+        ViewerAction.previousPage,
+      );
     });
 
     test('Vim: j maps to nextPage', () {
@@ -33,10 +36,10 @@ void main() {
       final input = KeyInput(PhysicalKeyboardKey.keyS, isControl: true);
       expect(service.getAction(input, AppMode.emacs), ViewerAction.search);
     });
-    
+
     test('Vim: / maps to search', () {
-       final input = KeyInput(PhysicalKeyboardKey.slash);
-       expect(service.getAction(input, AppMode.vim), ViewerAction.search);
+      final input = KeyInput(PhysicalKeyboardKey.slash);
+      expect(service.getAction(input, AppMode.vim), ViewerAction.search);
     });
 
     test('Common: ArrowDown maps to nextPage', () {
@@ -47,18 +50,29 @@ void main() {
 
     test('Common: ArrowUp maps to previousPage', () {
       final input = KeyInput(PhysicalKeyboardKey.arrowUp);
-      expect(service.getAction(input, AppMode.emacs), ViewerAction.previousPage);
+      expect(
+        service.getAction(input, AppMode.emacs),
+        ViewerAction.previousPage,
+      );
       expect(service.getAction(input, AppMode.vim), ViewerAction.previousPage);
     });
 
     // Emacs Jump keys
     test('Emacs: M-< maps to firstPage', () {
-      final input = KeyInput(PhysicalKeyboardKey.comma, isAlt: true, isShift: true);
+      final input = KeyInput(
+        PhysicalKeyboardKey.comma,
+        isAlt: true,
+        isShift: true,
+      );
       expect(service.getAction(input, AppMode.emacs), ViewerAction.firstPage);
     });
 
     test('Emacs: M-> maps to lastPage', () {
-      final input = KeyInput(PhysicalKeyboardKey.period, isAlt: true, isShift: true);
+      final input = KeyInput(
+        PhysicalKeyboardKey.period,
+        isAlt: true,
+        isShift: true,
+      );
       expect(service.getAction(input, AppMode.emacs), ViewerAction.lastPage);
     });
 

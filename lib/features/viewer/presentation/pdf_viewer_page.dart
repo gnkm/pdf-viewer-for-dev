@@ -20,7 +20,7 @@ class PdfViewerPage extends ConsumerStatefulWidget {
 class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
   // Removed: late final PdfTextSearcher _textSearcher;
-  
+
   // ggキーシーケンス検出用
   bool _waitingForSecondG = false;
   Timer? _ggSequenceTimer;
@@ -30,19 +30,19 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     super.initState();
     // Removed: _textSearcher = PdfTextSearcher(_controller);
   }
-  
+
   @override
   void dispose() {
     _ggSequenceTimer?.cancel();
     super.dispose();
   }
-  
+
   void _resetGgSequence() {
     _waitingForSecondG = false;
     _ggSequenceTimer?.cancel();
     _ggSequenceTimer = null;
   }
-  
+
   void _handleGKey() {
     if (_waitingForSecondG) {
       // 2回目のgキーが押された -> ggシーケンス完了
@@ -90,9 +90,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
     ref.listen(viewerProvider, (previous, next) {
       if (previous?.pageNumber != next.pageNumber) {
-         if (_controller.isReady && _controller.pageNumber != next.pageNumber) {
-             _controller.goToPage(pageNumber: next.pageNumber);
-         }
+        if (_controller.isReady && _controller.pageNumber != next.pageNumber) {
+          _controller.goToPage(pageNumber: next.pageNumber);
+        }
       }
       // ズーム値が変更された場合、PdfViewerControllerに反映
       if (previous?.zoom != next.zoom && _controller.isReady) {
@@ -103,7 +103,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     });
 
     if (state.filePath == null) {
-       return Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -111,7 +111,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
               const Text("No PDF opened"),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _pickFile, 
+                onPressed: _pickFile,
                 child: const Text("Open File"),
               ),
             ],
@@ -129,35 +129,35 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
               if (state.isSearchActive) return KeyEventResult.ignored;
 
               if (event is KeyDownEvent) {
-                 final input = KeyInput(
-                   event.physicalKey,
-                   isControl: HardwareKeyboard.instance.isControlPressed,
-                   isMeta: HardwareKeyboard.instance.isMetaPressed,
-                   isAlt: HardwareKeyboard.instance.isAltPressed,
-                   isShift: HardwareKeyboard.instance.isShiftPressed,
-                 );
-                 
-                 // Vimモードでggシーケンス検出（修飾キーなしのgキーのみ）
-                 if (state.mode == AppMode.vim &&
-                     event.physicalKey == PhysicalKeyboardKey.keyG &&
-                     !HardwareKeyboard.instance.isControlPressed &&
-                     !HardwareKeyboard.instance.isMetaPressed &&
-                     !HardwareKeyboard.instance.isAltPressed &&
-                     !HardwareKeyboard.instance.isShiftPressed) {
-                   _handleGKey();
-                   return KeyEventResult.handled;
-                 }
-                 
-                 // 他のキーが押されたらggシーケンスをリセット
-                 if (_waitingForSecondG) {
-                   _resetGgSequence();
-                 }
-                 
-                 final action = keyService.getAction(input, state.mode);
-                 if (action != null) {
-                   _handleAction(action);
-                   return KeyEventResult.handled;
-                 }
+                final input = KeyInput(
+                  event.physicalKey,
+                  isControl: HardwareKeyboard.instance.isControlPressed,
+                  isMeta: HardwareKeyboard.instance.isMetaPressed,
+                  isAlt: HardwareKeyboard.instance.isAltPressed,
+                  isShift: HardwareKeyboard.instance.isShiftPressed,
+                );
+
+                // Vimモードでggシーケンス検出（修飾キーなしのgキーのみ）
+                if (state.mode == AppMode.vim &&
+                    event.physicalKey == PhysicalKeyboardKey.keyG &&
+                    !HardwareKeyboard.instance.isControlPressed &&
+                    !HardwareKeyboard.instance.isMetaPressed &&
+                    !HardwareKeyboard.instance.isAltPressed &&
+                    !HardwareKeyboard.instance.isShiftPressed) {
+                  _handleGKey();
+                  return KeyEventResult.handled;
+                }
+
+                // 他のキーが押されたらggシーケンスをリセット
+                if (_waitingForSecondG) {
+                  _resetGgSequence();
+                }
+
+                final action = keyService.getAction(input, state.mode);
+                if (action != null) {
+                  _handleAction(action);
+                  return KeyEventResult.handled;
+                }
               }
               return KeyEventResult.ignored;
             },
@@ -194,19 +194,24 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                             hintText: 'Search...',
                           ),
                           onSubmitted: (value) {
-                             if (value.isNotEmpty) {
-                               // Simple search attempt if API allows
-                               // If not, just show message "Search Logic Pending"
-                               ScaffoldMessenger.of(context).showSnackBar(
-                                 SnackBar(content: Text("Search logic implementation disabled due to API mismatch. Please update pdfrx.")),
-                               );
-                             }
+                            if (value.isNotEmpty) {
+                              // Simple search attempt if API allows
+                              // If not, just show message "Search Logic Pending"
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    "Search logic implementation disabled due to API mismatch. Please update pdfrx.",
+                                  ),
+                                ),
+                              );
+                            }
                           },
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => ref.read(viewerProvider.notifier).toggleSearch(),
+                        onPressed: () =>
+                            ref.read(viewerProvider.notifier).toggleSearch(),
                       ),
                     ],
                   ),
@@ -220,14 +225,19 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         child: Row(
           children: [
             const SizedBox(width: 16),
-            Text("Page: ${state.pageNumber} / ${_controller.isReady ? _controller.pageCount : '?'}"),
+            Text(
+              "Page: ${state.pageNumber} / ${_controller.isReady ? _controller.pageCount : '?'}",
+            ),
             const SizedBox(width: 16),
             Text("Zoom: ${(state.zoom * 100).toInt()}%"),
             const Spacer(),
             InkWell(
               onTap: () => ref.read(viewerProvider.notifier).toggleMode(),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
                 child: Text(
                   "Mode: ${state.mode.name.toUpperCase()}",
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -258,7 +268,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         break;
       case ViewerAction.lastPage:
         if (_controller.isReady) {
-           notifier.setPage(_controller.pageCount);
+          notifier.setPage(_controller.pageCount);
         }
         break;
       case ViewerAction.zoomIn:
@@ -280,16 +290,34 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         // Treat as "Actual Size" or "Default" for now
         notifier.setZoom(1.0);
         break;
-        
-      case ViewerAction.jumpPage10: _jumpToPercent(0.1); break;
-      case ViewerAction.jumpPage20: _jumpToPercent(0.2); break;
-      case ViewerAction.jumpPage30: _jumpToPercent(0.3); break;
-      case ViewerAction.jumpPage40: _jumpToPercent(0.4); break;
-      case ViewerAction.jumpPage50: _jumpToPercent(0.5); break;
-      case ViewerAction.jumpPage60: _jumpToPercent(0.6); break;
-      case ViewerAction.jumpPage70: _jumpToPercent(0.7); break;
-      case ViewerAction.jumpPage80: _jumpToPercent(0.8); break;
-      case ViewerAction.jumpPage90: _jumpToPercent(0.9); break;
+
+      case ViewerAction.jumpPage10:
+        _jumpToPercent(0.1);
+        break;
+      case ViewerAction.jumpPage20:
+        _jumpToPercent(0.2);
+        break;
+      case ViewerAction.jumpPage30:
+        _jumpToPercent(0.3);
+        break;
+      case ViewerAction.jumpPage40:
+        _jumpToPercent(0.4);
+        break;
+      case ViewerAction.jumpPage50:
+        _jumpToPercent(0.5);
+        break;
+      case ViewerAction.jumpPage60:
+        _jumpToPercent(0.6);
+        break;
+      case ViewerAction.jumpPage70:
+        _jumpToPercent(0.7);
+        break;
+      case ViewerAction.jumpPage80:
+        _jumpToPercent(0.8);
+        break;
+      case ViewerAction.jumpPage90:
+        _jumpToPercent(0.9);
+        break;
     }
   }
 

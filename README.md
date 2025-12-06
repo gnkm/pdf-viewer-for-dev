@@ -54,5 +54,23 @@ theme = "dark" # "light", "dark", または "system"
 flutter test
 ```
 
+### Pre-commitフックのセットアップ
+
+コミット前に自動的にlint、テスト、セキュリティチェックを実行するには、以下の手順を実行してください。
+
+```bash
+# Git hooksをインストール
+./scripts/install_hooks.sh
+
+# 手動でチェックを実行
+dart run scripts/pre_commit.dart
+```
+
+実行されるチェック:
+- **Lintチェック**: `flutter analyze` でコードの静的解析
+- **フォーマットチェック**: `dart format` でコードフォーマットの確認
+- **テスト実行**: `flutter test` でユニットテストの実行
+- **セキュリティチェック**: `dart pub outdated` で依存関係の更新確認
+
 ### 備考
 - **WASM に関する警告**: デバッグビルド時に "Bundling PDFium WASM" という警告が表示されることがありますが、デスクトップ開発においては無視して問題ありません。
