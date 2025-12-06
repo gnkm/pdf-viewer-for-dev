@@ -70,7 +70,10 @@ dart run scripts/pre_commit.dart
 - **Lintチェック**: `flutter analyze` でコードの静的解析
 - **フォーマットチェック**: `dart format` でコードフォーマットの確認
 - **テスト実行**: `flutter test` でユニットテストの実行
-- **セキュリティチェック**: `dart pub outdated` で依存関係の更新確認
+- **セキュリティチェック**: 
+  - 依存関係の更新確認 (`dart pub outdated`)
+  - 脆弱性スキャン (OSVデータベースを使用)
+  - パッケージの信頼性確認 (pub.dev APIを使用)
 
 ### 備考
 - **WASM に関する警告**: デバッグビルド時に "Bundling PDFium WASM" という警告が表示されることがありますが、デスクトップ開発においては無視して問題ありません。

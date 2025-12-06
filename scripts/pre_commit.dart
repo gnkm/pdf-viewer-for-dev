@@ -2,6 +2,7 @@
 // pre-commitフック用のDartスクリプト
 // lint、テスト、セキュリティチェックを実行
 
+import 'dart:convert';
 import 'dart:io';
 
 void main(List<String> args) async {
@@ -103,27 +104,249 @@ Future<bool> _runTests() async {
 }
 
 Future<bool> _runSecurityCheck() async {
-  // 依存関係の更新確認（outdatedはデフォルトで更新しない）
-  final result = await Process.run('dart', [
+  bool allChecksPassed = true;
+
+  // 1. 依存関係の更新確認
+  print('  📦 依存関係の更新確認中...');
+  final outdatedResult = await Process.run('dart', [
     'pub',
     'outdated',
   ], runInShell: true);
 
-  // outdatedは警告のみで、エラーにはしない
-  if (result.exitCode == 0) {
-    final output = result.stdout.toString();
-    if (output.contains('No dependencies changed') || output.trim().isEmpty) {
-      print('✅ すべての依存関係は最新です');
+  if (outdatedResult.exitCode == 0) {
+    final output = outdatedResult.stdout.toString();
+    if (output.contains('No dependencies changed') ||
+        output.trim().isEmpty ||
+        output.contains('all up-to-date')) {
+      print('    ✅ すべての依存関係は最新です');
     } else {
-      print('⚠️  更新可能な依存関係があります:');
-      print(output);
-      print('   確認するには: dart pub outdated');
+      print('    ⚠️  更新可能な依存関係があります:');
+      // 最初の数行のみ表示
+      final lines = output.split('\n').take(10).join('\n');
+      print('   $lines');
+      print('    💡 詳細は `dart pub outdated` で確認してください');
     }
+  } else {
+    print('    ⚠️  依存関係の確認中にエラーが発生しました');
+    print('   ${outdatedResult.stderr}');
+  }
+
+  // 2. 依存関係の脆弱性チェック（OSVデータベース）
+  print('  🔒 脆弱性スキャン中...');
+  try {
+    final vulnerabilityCheck = await _checkVulnerabilities();
+    if (!vulnerabilityCheck) {
+      allChecksPassed = false;
+    }
+  } catch (e) {
+    print('    ⚠️  脆弱性チェック中にエラーが発生しました: $e');
+    // ネットワークエラーなどは警告として扱う
+  }
+
+  // 3. pub.devでのパッケージ検証
+  print('  📋 パッケージの信頼性確認中...');
+  try {
+    final packageCheck = await _verifyPackages();
+    if (!packageCheck) {
+      allChecksPassed = false;
+    }
+  } catch (e) {
+    print('    ⚠️  パッケージ検証中にエラーが発生しました: $e');
+    // ネットワークエラーなどは警告として扱う
+  }
+
+  return allChecksPassed;
+}
+
+/// OSVデータベースを使用して脆弱性をチェック
+Future<bool> _checkVulnerabilities() async {
+  // 依存関係リストを取得
+  final depsResult = await Process.run('dart', [
+    'pub',
+    'deps',
+    '--json',
+  ], runInShell: true);
+
+  if (depsResult.exitCode != 0) {
+    print('    ⚠️  依存関係の取得に失敗しました');
+    return true; // エラーは警告として扱う
+  }
+
+  final depsJson = jsonDecode(depsResult.stdout.toString()) as Map;
+  final packages = _extractPackages(depsJson);
+
+  if (packages.isEmpty) {
+    print('    ✅ チェック対象のパッケージがありません');
     return true;
   }
 
-  // エラーの場合は警告として扱う
-  print('⚠️  依存関係の確認中にエラーが発生しました');
-  print(result.stderr);
-  return true; // セキュリティチェックは警告のみ
+  print('    📦 ${packages.length}個のパッケージをチェック中...');
+
+  final httpClient = HttpClient();
+  int vulnerabilityCount = 0;
+  final vulnerablePackages = <String>[];
+
+  try {
+    for (final package in packages) {
+      final packageName = package['name'] as String;
+      final packageVersion = package['version'] as String;
+
+      // OSV APIにクエリを送信
+      try {
+        final request = await httpClient.postUrl(
+          Uri.parse('https://api.osv.dev/v1/query'),
+        );
+        request.headers.set('Content-Type', 'application/json');
+        request.write(
+          jsonEncode({
+            'package': {'name': packageName, 'ecosystem': 'Pub'},
+            'version': packageVersion,
+          }),
+        );
+        final response = await request.close();
+        final responseBody = await response.transform(utf8.decoder).join();
+        final responseData = jsonDecode(responseBody) as Map;
+
+        if (responseData.containsKey('vulns') &&
+            (responseData['vulns'] as List).isNotEmpty) {
+          vulnerabilityCount++;
+          vulnerablePackages.add('$packageName@$packageVersion');
+        }
+      } catch (e) {
+        // 個別のパッケージチェックエラーは無視
+        continue;
+      }
+    }
+  } finally {
+    httpClient.close();
+  }
+
+  if (vulnerabilityCount > 0) {
+    print('    ❌ $vulnerabilityCount個のパッケージに脆弱性が見つかりました:');
+    for (final pkg in vulnerablePackages) {
+      print('      - $pkg');
+    }
+    print('    💡 詳細は https://osv.dev/ で確認してください');
+    return false;
+  } else {
+    print('    ✅ 既知の脆弱性は見つかりませんでした');
+    return true;
+  }
+}
+
+/// pub.devでパッケージの信頼性を確認
+Future<bool> _verifyPackages() async {
+  final depsResult = await Process.run('dart', [
+    'pub',
+    'deps',
+    '--json',
+  ], runInShell: true);
+
+  if (depsResult.exitCode != 0) {
+    return true; // エラーは警告として扱う
+  }
+
+  final depsJson = jsonDecode(depsResult.stdout.toString()) as Map;
+  final packages = _extractPackages(depsJson);
+
+  if (packages.isEmpty) {
+    return true;
+  }
+
+  final httpClient = HttpClient();
+  final suspiciousPackages = <String>[];
+
+  try {
+    for (final package in packages) {
+      final packageName = package['name'] as String;
+
+      // pub.dev APIでパッケージ情報を取得
+      try {
+        final request = await httpClient.getUrl(
+          Uri.parse('https://pub.dev/api/packages/$packageName'),
+        );
+        final response = await request.close();
+
+        if (response.statusCode == 404) {
+          // pub.devに存在しないパッケージは警告
+          suspiciousPackages.add('$packageName (pub.devに存在しません)');
+        } else if (response.statusCode == 200) {
+          final responseBody = await response.transform(utf8.decoder).join();
+          final packageData = jsonDecode(responseBody) as Map;
+
+          // パッケージのスコアを確認（低いスコアは警告）
+          final score = packageData['score'] as Map?;
+          if (score != null) {
+            final popularityScore = score['popularityScore'] as num?;
+            if (popularityScore != null && popularityScore < 0.3) {
+              suspiciousPackages.add(
+                '$packageName (人気度スコアが低い: ${popularityScore.toStringAsFixed(2)})',
+              );
+            }
+          }
+        }
+      } catch (e) {
+        // 個別のパッケージチェックエラーは無視
+        continue;
+      }
+    }
+  } finally {
+    httpClient.close();
+  }
+
+  if (suspiciousPackages.isNotEmpty) {
+    print('    ⚠️  以下のパッケージに注意が必要です:');
+    for (final pkg in suspiciousPackages) {
+      print('      - $pkg');
+    }
+    print('    💡 詳細は https://pub.dev/ で確認してください');
+    // 警告のみで、失敗にはしない
+  } else {
+    print('    ✅ すべてのパッケージがpub.devで確認できました');
+  }
+
+  return true;
+}
+
+/// 依存関係JSONからパッケージ情報を抽出
+List<Map<String, String>> _extractPackages(Map depsJson) {
+  final packages = <Map<String, String>>[];
+  final visited = <String>{};
+
+  // dart pub deps --jsonの構造: { "packages": [...] }
+  final packagesList = depsJson['packages'] as List?;
+  if (packagesList == null) {
+    return packages;
+  }
+
+  for (final packageData in packagesList) {
+    if (packageData is! Map) continue;
+
+    final name = packageData['name'] as String?;
+    final version = packageData['version'] as String?;
+    final source = packageData['source'] as String?;
+    final kind = packageData['kind'] as String?;
+
+    // プロジェクト自身、Flutter SDK、path依存を除外
+    if (name == null ||
+        version == null ||
+        visited.contains(name) ||
+        name == 'pdf_viewer_for_dev' ||
+        name == 'flutter' ||
+        name == 'dart' ||
+        source == 'sdk' ||
+        kind == 'root') {
+      continue;
+    }
+
+    // Flutter SDKパッケージを除外
+    if (name.startsWith('flutter_') && source == 'sdk') {
+      continue;
+    }
+
+    visited.add(name);
+    packages.add({'name': name, 'version': version});
+  }
+
+  return packages;
 }
