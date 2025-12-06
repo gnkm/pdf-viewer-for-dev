@@ -11,7 +11,7 @@ import 'package:pdf_viewer_for_dev/core/input/input_models.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_providers.dart';
 import 'package:pdf_viewer_for_dev/core/input/viewer_action.dart';
 import 'package:pdf_viewer_for_dev/features/viewer/application/viewer_state.dart'
-    show SearchMatch, viewerProvider;
+    show SearchMatch, ViewerState, viewerProvider;
 
 class PdfViewerPage extends ConsumerStatefulWidget {
   const PdfViewerPage({super.key});
@@ -24,7 +24,10 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _pdfViewerFocusNode = FocusNode();
   PdfTextSearcher? _textSearcher;
+  // 検索結果のページテキストをキャッシュ（ハイライト表示用）
+  final Map<int, PdfPageText> _pageTextCache = {};
 
   // ggキーシーケンス検出用
   bool _waitingForSecondG = false;
@@ -40,6 +43,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     _colonSequenceTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _pdfViewerFocusNode.dispose();
     super.dispose();
   }
 
@@ -80,6 +84,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       // PdfTextSearcherを初期化（毎回新しいインスタンスを作成）
       _textSearcher = PdfTextSearcher(_controller);
 
+      // キャッシュをクリア
+      _pageTextCache.clear();
+
       final matches = <SearchMatch>[];
 
       // 全ページを検索
@@ -90,6 +97,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           if (pageText == null) {
             continue;
           }
+
+          // ページテキストをキャッシュに保存（ハイライト表示用）
+          _pageTextCache[pageNum] = pageText;
 
           // 大文字小文字を区別しない検索
           await for (final match in pageText.allMatches(
@@ -109,6 +119,12 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       if (matches.isNotEmpty) {
         notifier.setCurrentSearchMatchIndex(0);
         await _jumpToSearchMatch(matches[0]);
+        // 検索実行後、PDFビューアーにフォーカスを戻す（nキーでナビゲーションできるように）
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pdfViewerFocusNode.canRequestFocus) {
+            _pdfViewerFocusNode.requestFocus();
+          }
+        });
       } else {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -149,13 +165,81 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         match.matchIndex + query.length,
       );
 
+      // 検索語全体が見えるように、最小限の余白を追加
+      // PDF座標系では、topが上、bottomが下
+      final bounds = matchRange.bounds;
+      // 余白を最小限にして、拡大されすぎないようにする
+      final margin = bounds.height * 30; // 上下に小さな余白を追加（検索語の高さの0.3倍）
+      final expandedRect = PdfRect(
+        bounds.left,
+        bounds.top + margin, // 上に余白を追加（topを増やす = 上に拡張）
+        bounds.right,
+        bounds.bottom - margin, // 下に余白を追加（bottomを減らす = 下に拡張）
+      );
+
       // マッチ範囲のバウンディングボックスを使用してジャンプ
+      // centerアンカーを使用して、検索語が中央付近に来るようにする
       await _controller.goToRectInsidePage(
         pageNumber: match.pageNumber,
-        rect: matchRange.bounds,
+        rect: expandedRect,
         anchor: PdfPageAnchor.center,
       );
+
     });
+  }
+
+  // 検索結果をハイライト表示するためのカスタムペイントコールバック
+  PdfViewerPagePaintCallback _buildSearchHighlightCallback(ViewerState state) {
+    return (Canvas canvas, Rect pageRect, PdfPage page) {
+      if (state.searchQuery == null || state.searchMatches.isEmpty) {
+        return;
+      }
+
+      // 現在のページの検索結果を取得
+      final pageMatches = state.searchMatches
+          .where((match) => match.pageNumber == page.pageNumber)
+          .toList();
+
+      if (pageMatches.isEmpty) {
+        return;
+      }
+
+      // キャッシュからページテキストを取得
+      final pageText = _pageTextCache[page.pageNumber];
+      if (pageText == null) {
+        return;
+      }
+
+      final query = state.searchQuery!;
+      final currentMatchIndex = state.currentSearchMatchIndex;
+
+      for (var i = 0; i < pageMatches.length; i++) {
+        final match = pageMatches[i];
+        final matchRange = pageText.getRangeFromAB(
+          match.matchIndex,
+          match.matchIndex + query.length,
+        );
+
+        // 現在のマッチかどうかで色を変える
+        final isActiveMatch = currentMatchIndex != null &&
+            state.searchMatches.indexOf(match) == currentMatchIndex;
+        final highlightColor = isActiveMatch
+            ? Colors.orange.withValues(alpha: 0.5)
+            : Colors.yellow.withValues(alpha: 0.3);
+
+        // PDF座標をFlutter座標に変換
+        final rect = matchRange.bounds.toRectInDocument(
+          page: page,
+          pageRect: pageRect,
+        );
+
+        // ハイライトを描画
+        final paint = Paint()
+          ..color = highlightColor
+          ..style = PaintingStyle.fill;
+        canvas.drawRect(rect, paint);
+      }
+    };
   }
 
   void _resetGgSequence() {
@@ -266,6 +350,8 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           _searchController.clear();
           // フォーカスを解除
           _searchFocusNode.unfocus();
+          // キャッシュをクリア
+          _pageTextCache.clear();
         }
       }
     });
@@ -444,11 +530,29 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         children: [
           Focus(
             autofocus: true,
+            focusNode: _pdfViewerFocusNode,
             onKeyEvent: handlePdfViewerKeyEvent,
             child: PdfViewer.file(
               state.filePath!,
               controller: _controller,
               params: PdfViewerParams(
+                // 検索結果のハイライト色を設定
+                matchTextColor: state.searchQuery != null &&
+                        state.searchMatches.isNotEmpty
+                    ? Colors.yellow.withValues(alpha: 0.3)
+                    : null,
+                activeMatchTextColor: state.searchQuery != null &&
+                        state.searchMatches.isNotEmpty &&
+                        state.currentSearchMatchIndex != null
+                    ? Colors.orange.withValues(alpha: 0.5)
+                    : null,
+                // 検索結果をハイライト表示するためのカスタムペイントコールバック
+                pagePaintCallbacks: state.searchQuery != null &&
+                        state.searchMatches.isNotEmpty
+                    ? [
+                        _buildSearchHighlightCallback(state),
+                      ]
+                    : null,
                 onPageChanged: (page) {
                   if (page != null) {
                     ref.read(viewerProvider.notifier).setPage(page);
@@ -471,27 +575,51 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                       const Icon(Icons.search),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          autofocus: true,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: '検索...',
-                            suffixText: state.searchMatches.isNotEmpty
-                                ? '${(state.currentSearchMatchIndex ?? 0) + 1}/${state.searchMatches.length}'
-                                : null,
-                          ),
-                          onChanged: (value) {
-                            ref
-                                .read(viewerProvider.notifier)
-                                .setSearchQuery(value.isEmpty ? null : value);
-                          },
-                          onSubmitted: (value) {
-                            if (value.isNotEmpty) {
-                              _performSearch(value);
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            // n/Nキーで検索ナビゲーション
+                            if (event is KeyDownEvent) {
+                              final isShift = HardwareKeyboard.instance.isShiftPressed;
+                              final isControl = HardwareKeyboard.instance.isControlPressed;
+                              final isMeta = HardwareKeyboard.instance.isMetaPressed;
+                              final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+                              if (event.physicalKey == PhysicalKeyboardKey.keyN &&
+                                  !isControl &&
+                                  !isMeta &&
+                                  !isAlt) {
+                                if (isShift) {
+                                  _handleAction(ViewerAction.previousSearchMatch);
+                                } else {
+                                  _handleAction(ViewerAction.nextSearchMatch);
+                                }
+                                return KeyEventResult.handled;
+                              }
                             }
+                            return KeyEventResult.ignored;
                           },
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            autofocus: true,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: '検索...',
+                              suffixText: state.searchMatches.isNotEmpty
+                                  ? '${(state.currentSearchMatchIndex ?? 0) + 1}/${state.searchMatches.length}'
+                                  : null,
+                            ),
+                            onChanged: (value) {
+                              ref
+                                  .read(viewerProvider.notifier)
+                                  .setSearchQuery(value.isEmpty ? null : value);
+                            },
+                            onSubmitted: (value) {
+                              if (value.isNotEmpty) {
+                                _performSearch(value);
+                              }
+                            },
+                          ),
                         ),
                       ),
                       IconButton(

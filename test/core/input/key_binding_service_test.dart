@@ -42,6 +42,22 @@ void main() {
       expect(service.getAction(input, AppMode.vim), ViewerAction.search);
     });
 
+    test('Vim: n maps to nextSearchMatch', () {
+      final input = KeyInput(PhysicalKeyboardKey.keyN);
+      expect(
+        service.getAction(input, AppMode.vim),
+        ViewerAction.nextSearchMatch,
+      );
+    });
+
+    test('Vim: N (Shift+n) maps to previousSearchMatch', () {
+      final input = KeyInput(PhysicalKeyboardKey.keyN, isShift: true);
+      expect(
+        service.getAction(input, AppMode.vim),
+        ViewerAction.previousSearchMatch,
+      );
+    });
+
     test('Common: ArrowDown maps to nextPage', () {
       final input = KeyInput(PhysicalKeyboardKey.arrowDown);
       expect(service.getAction(input, AppMode.emacs), ViewerAction.nextPage);
