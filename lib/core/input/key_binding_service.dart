@@ -62,7 +62,11 @@ class KeyBindingService {
           ViewerAction.lastPage, // G -> Shift + g
       // Search
       const KeyInput(PhysicalKeyboardKey.slash): ViewerAction.search,
-
+      // Search navigation (n/N for next/previous match)
+      const KeyInput(PhysicalKeyboardKey.keyN, isShift: false):
+          ViewerAction.nextSearchMatch, // n
+      const KeyInput(PhysicalKeyboardKey.keyN, isShift: true):
+          ViewerAction.previousSearchMatch, // N
       // Percentage Jump (1-9 only, as per requirements)
       const KeyInput(PhysicalKeyboardKey.digit1): ViewerAction.jumpPage10,
       const KeyInput(PhysicalKeyboardKey.digit2): ViewerAction.jumpPage20,

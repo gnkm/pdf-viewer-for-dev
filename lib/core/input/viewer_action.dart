@@ -4,6 +4,8 @@ enum ViewerAction {
   firstPage,
   lastPage,
   search,
+  nextSearchMatch,
+  previousSearchMatch,
   zoomIn,
   zoomOut,
   zoomReset,

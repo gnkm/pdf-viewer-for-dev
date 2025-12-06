@@ -1,14 +1,17 @@
 import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
+
 import 'package:pdf_viewer_for_dev/core/config/app_mode.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_models.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_providers.dart';
 import 'package:pdf_viewer_for_dev/core/input/viewer_action.dart';
-import 'package:pdf_viewer_for_dev/features/viewer/application/viewer_state.dart';
+import 'package:pdf_viewer_for_dev/features/viewer/application/viewer_state.dart'
+    show SearchMatch, viewerProvider;
 
 class PdfViewerPage extends ConsumerStatefulWidget {
   const PdfViewerPage({super.key});
@@ -19,6 +22,9 @@ class PdfViewerPage extends ConsumerStatefulWidget {
 
 class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  PdfTextSearcher? _textSearcher;
 
   // ggキーシーケンス検出用
   bool _waitingForSecondG = false;
@@ -32,7 +38,124 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   void dispose() {
     _ggSequenceTimer?.cancel();
     _colonSequenceTimer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _performSearch(String query) async {
+    final currentState = ref.read(viewerProvider);
+    if (query.isEmpty || currentState.filePath == null) {
+      return;
+    }
+
+    // コントローラーが準備できていない場合、少し待つ
+    if (!_controller.isReady) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDFの読み込みを待っています...')));
+      }
+      // 最大5秒待つ
+      for (var i = 0; i < 50; i++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (_controller.isReady) {
+          break;
+        }
+      }
+      if (!_controller.isReady) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('PDFの読み込みに失敗しました')));
+        }
+        return;
+      }
+    }
+
+    try {
+      final notifier = ref.read(viewerProvider.notifier);
+      notifier.setSearchQuery(query);
+
+      // PdfTextSearcherを初期化（毎回新しいインスタンスを作成）
+      _textSearcher = PdfTextSearcher(_controller);
+
+      final matches = <SearchMatch>[];
+
+      // 全ページを検索
+      await _controller.useDocument((document) async {
+        final pageCount = document.pages.length;
+        for (var pageNum = 1; pageNum <= pageCount; pageNum++) {
+          final pageText = await _textSearcher!.loadText(pageNumber: pageNum);
+          if (pageText == null) {
+            continue;
+          }
+
+          // 大文字小文字を区別しない検索
+          await for (final match in pageText.allMatches(
+            query,
+            caseInsensitive: true,
+          )) {
+            matches.add(
+              SearchMatch(pageNumber: pageNum, matchIndex: match.start),
+            );
+          }
+        }
+      });
+
+      notifier.setSearchMatches(matches);
+
+      // 最初のマッチにジャンプ
+      if (matches.isNotEmpty) {
+        notifier.setCurrentSearchMatchIndex(0);
+        await _jumpToSearchMatch(matches[0]);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('見つかりませんでした')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('検索エラー: $e')));
+      }
+    }
+  }
+
+  Future<void> _jumpToSearchMatch(SearchMatch match) async {
+    if (!_controller.isReady) {
+      return;
+    }
+
+    // ページに移動
+    ref.read(viewerProvider.notifier).setPage(match.pageNumber);
+
+    // テキスト位置にジャンプ
+    await _controller.useDocument((document) async {
+      final pageText = await _textSearcher!.loadText(
+        pageNumber: match.pageNumber,
+      );
+      if (pageText == null) {
+        return;
+      }
+
+      // マッチ範囲を取得（検索クエリの長さを使用）
+      final query = ref.read(viewerProvider).searchQuery ?? '';
+      final matchRange = pageText.getRangeFromAB(
+        match.matchIndex,
+        match.matchIndex + query.length,
+      );
+
+      // マッチ範囲のバウンディングボックスを使用してジャンプ
+      await _controller.goToRectInsidePage(
+        pageNumber: match.pageNumber,
+        rect: matchRange.bounds,
+        anchor: PdfPageAnchor.center,
+      );
+    });
   }
 
   void _resetGgSequence() {
@@ -125,6 +248,26 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         final centerPosition = _controller.centerPosition;
         _controller.setZoom(centerPosition, next.zoom);
       }
+      // 検索状態の変更を処理
+      if (previous?.isSearchActive != next.isSearchActive) {
+        if (next.isSearchActive) {
+          // 検索がアクティブになったとき、以前のクエリを設定
+          if (next.searchQuery != null && next.searchQuery!.isNotEmpty) {
+            _searchController.text = next.searchQuery!;
+          }
+          // 検索フィールドにフォーカスを設定
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _searchFocusNode.canRequestFocus) {
+              _searchFocusNode.requestFocus();
+            }
+          });
+        } else {
+          // 検索が閉じられたとき、コントローラーをクリア
+          _searchController.clear();
+          // フォーカスを解除
+          _searchFocusNode.unfocus();
+        }
+      }
     });
 
     // 共通のキーイベントハンドラー（Cmd + O など）
@@ -193,7 +336,29 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
     // PDFビューアー用のキーイベントハンドラー（Vimシーケンスなど追加）
     KeyEventResult handlePdfViewerKeyEvent(FocusNode node, KeyEvent event) {
-      if (state.isSearchActive) return KeyEventResult.ignored;
+      // 検索中は検索フィールドにフォーカスがあるため、n/Nキーのみ処理
+      if (state.isSearchActive) {
+        if (event is KeyDownEvent) {
+          final isShift = HardwareKeyboard.instance.isShiftPressed;
+          final isControl = HardwareKeyboard.instance.isControlPressed;
+          final isMeta = HardwareKeyboard.instance.isMetaPressed;
+          final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+          // n/Nキーで検索ナビゲーション
+          if (event.physicalKey == PhysicalKeyboardKey.keyN &&
+              !isControl &&
+              !isMeta &&
+              !isAlt) {
+            if (isShift) {
+              _handleAction(ViewerAction.previousSearchMatch);
+            } else {
+              _handleAction(ViewerAction.nextSearchMatch);
+            }
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      }
 
       if (event is KeyDownEvent) {
         final isControl = HardwareKeyboard.instance.isControlPressed;
@@ -307,16 +472,24 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
                           autofocus: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: '検索...',
+                            suffixText: state.searchMatches.isNotEmpty
+                                ? '${(state.currentSearchMatchIndex ?? 0) + 1}/${state.searchMatches.length}'
+                                : null,
                           ),
+                          onChanged: (value) {
+                            ref
+                                .read(viewerProvider.notifier)
+                                .setSearchQuery(value.isEmpty ? null : value);
+                          },
                           onSubmitted: (value) {
                             if (value.isNotEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('検索機能は現在実装中です。')),
-                              );
+                              _performSearch(value);
                             }
                           },
                         ),
@@ -400,6 +573,30 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         break;
       case ViewerAction.search:
         notifier.toggleSearch();
+        break;
+      case ViewerAction.nextSearchMatch:
+        final currentState = ref.read(viewerProvider);
+        if (currentState.searchMatches.isNotEmpty) {
+          notifier.nextSearchMatch();
+          final updatedState = ref.read(viewerProvider);
+          final currentIndex = updatedState.currentSearchMatchIndex;
+          if (currentIndex != null &&
+              currentIndex < updatedState.searchMatches.length) {
+            _jumpToSearchMatch(updatedState.searchMatches[currentIndex]);
+          }
+        }
+        break;
+      case ViewerAction.previousSearchMatch:
+        final currentState = ref.read(viewerProvider);
+        if (currentState.searchMatches.isNotEmpty) {
+          notifier.previousSearchMatch();
+          final updatedState = ref.read(viewerProvider);
+          final currentIndex = updatedState.currentSearchMatchIndex;
+          if (currentIndex != null &&
+              currentIndex < updatedState.searchMatches.length) {
+            _jumpToSearchMatch(updatedState.searchMatches[currentIndex]);
+          }
+        }
         break;
       case ViewerAction.toggleMode:
         notifier.toggleMode();
