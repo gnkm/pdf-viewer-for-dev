@@ -8,7 +8,7 @@ part of 'config_model.dart';
 
 _ConfigModel _$ConfigModelFromJson(Map<String, dynamic> json) => _ConfigModel(
   defaultMode: json['default_mode'] == null
-      ? AppMode.emacs
+      ? AppMode.vim
       : _modeFromStr(json['default_mode']),
   theme: json['theme'] as String? ?? 'system',
   lastSession: json['lastSession'] == null

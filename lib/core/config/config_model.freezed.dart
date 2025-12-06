@@ -224,7 +224,7 @@ return $default(_that.defaultMode,_that.theme,_that.lastSession);case _:
 @JsonSerializable()
 
 class _ConfigModel implements ConfigModel {
-  const _ConfigModel({@JsonKey(name: 'default_mode', fromJson: _modeFromStr) this.defaultMode = AppMode.emacs, this.theme = 'system', this.lastSession});
+  const _ConfigModel({@JsonKey(name: 'default_mode', fromJson: _modeFromStr) this.defaultMode = AppMode.vim, this.theme = 'system', this.lastSession});
   factory _ConfigModel.fromJson(Map<String, dynamic> json) => _$ConfigModelFromJson(json);
 
 // ignore: invalid_annotation_target

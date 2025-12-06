@@ -210,7 +210,7 @@ return $default(_that.pageNumber,_that.zoom,_that.filePath,_that.mode,_that.isSe
 
 
 class _ViewerState implements ViewerState {
-  const _ViewerState({this.pageNumber = 1, this.zoom = 1.0, this.filePath, this.mode = AppMode.emacs, this.isSearchActive = false});
+  const _ViewerState({this.pageNumber = 1, this.zoom = 1.0, this.filePath, this.mode = AppMode.vim, this.isSearchActive = false});
   
 
 @override@JsonKey() final  int pageNumber;

@@ -8,7 +8,7 @@ part 'config_model.g.dart';
 abstract class ConfigModel with _$ConfigModel {
   const factory ConfigModel({
     // ignore: invalid_annotation_target
-    @Default(AppMode.emacs)
+    @Default(AppMode.vim)
     @JsonKey(name: 'default_mode', fromJson: _modeFromStr)
     AppMode defaultMode,
 
@@ -37,5 +37,5 @@ AppMode _modeFromStr(dynamic value) {
   if (value is String) {
     return AppMode.fromString(value);
   }
-  return AppMode.emacs;
+  return AppMode.vim;
 }

@@ -12,7 +12,7 @@ abstract class ViewerState with _$ViewerState {
     @Default(1) int pageNumber,
     @Default(1.0) double zoom,
     String? filePath,
-    @Default(AppMode.emacs) AppMode mode,
+    @Default(AppMode.vim) AppMode mode,
     @Default(false) bool isSearchActive,
   }) = _ViewerState;
 }
@@ -47,9 +47,11 @@ class ViewerNotifier extends _$ViewerNotifier {
   }
 
   void toggleMode() {
-    state = state.copyWith(
-      mode: state.mode == AppMode.emacs ? AppMode.vim : AppMode.emacs,
-    );
+    // Emacsモードは無効化されているため、常にVimモードを維持
+    // コードは残しておくが、実際には動作しない
+    // state = state.copyWith(
+    //   mode: state.mode == AppMode.emacs ? AppMode.vim : AppMode.emacs,
+    // );
   }
 
   void setMode(AppMode mode) {

@@ -344,18 +344,23 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
             const SizedBox(width: 16),
             Text('ズーム: ${(state.zoom * 100).toInt()}%'),
             const Spacer(),
-            InkWell(
-              onTap: () => ref.read(viewerProvider.notifier).toggleMode(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: 4.0,
-                ),
-                child: Text(
-                  'モード: ${state.mode.name.toUpperCase()}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+            // Emacsモードは無効化されているため、モード切替UIを非表示
+            // InkWell(
+            //   onTap: () => ref.read(viewerProvider.notifier).toggleMode(),
+            //   child: Padding(
+            //     padding: const EdgeInsets.symmetric(
+            //       horizontal: 8.0,
+            //       vertical: 4.0,
+            //     ),
+            //     child: Text(
+            //       'モード: ${state.mode.name.toUpperCase()}',
+            //       style: const TextStyle(fontWeight: FontWeight.bold),
+            //     ),
+            //   ),
+            // ),
+            Text(
+              'モード: ${state.mode.name.toUpperCase()}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 16),
           ],

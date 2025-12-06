@@ -5,7 +5,7 @@ enum AppMode {
   static AppMode fromString(String value) {
     return AppMode.values.firstWhere(
       (e) => e.name == value,
-      orElse: () => AppMode.emacs,
+      orElse: () => AppMode.vim,
     );
   }
 }

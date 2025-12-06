@@ -7,7 +7,7 @@ void main() {
   group('ConfigService', () {
     test('parseConfig returns default values for empty string', () {
       final config = ConfigService.parseConfig('');
-      expect(config.defaultMode, AppMode.emacs);
+      expect(config.defaultMode, AppMode.vim);
       expect(config.theme, 'system');
     });
 
@@ -27,7 +27,7 @@ default_mode = "unknown"
 theme = 123
 ''';
       final config = ConfigService.parseConfig(toml);
-      expect(config.defaultMode, AppMode.emacs); // Fallback
+      expect(config.defaultMode, AppMode.vim); // Fallback
       expect(config.theme, 'system'); // Fallback
     });
 
