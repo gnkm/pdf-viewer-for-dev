@@ -39,13 +39,13 @@ class KeyBindingService {
       // Navigation
       const KeyInput(PhysicalKeyboardKey.keyJ): ViewerAction.nextPage,
       const KeyInput(PhysicalKeyboardKey.keyK): ViewerAction.previousPage,
-      const KeyInput(PhysicalKeyboardKey.digit0): ViewerAction.firstPage, // gg (without Ctrl)
+      // Note: gg (firstPage) is not implemented yet - requires key sequence detection
       const KeyInput(PhysicalKeyboardKey.keyG, isShift: true): ViewerAction.lastPage, // G -> Shift + g
 
       // Search
       const KeyInput(PhysicalKeyboardKey.slash): ViewerAction.search,
 
-      // Percentage Jump
+      // Percentage Jump (1-9 only, as per requirements)
       const KeyInput(PhysicalKeyboardKey.digit1): ViewerAction.jumpPage10,
       const KeyInput(PhysicalKeyboardKey.digit2): ViewerAction.jumpPage20,
       const KeyInput(PhysicalKeyboardKey.digit3): ViewerAction.jumpPage30,

@@ -252,7 +252,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   void _jumpToPercent(double percent) {
     if (_controller.isReady) {
-      final target = (_controller.pageCount * percent).round();
+      final target = (_controller.pageCount * percent).floor();
       final page = target < 1 ? 1 : target;
       ref.read(viewerProvider.notifier).setPage(page);
     }

@@ -63,14 +63,19 @@ void main() {
     });
 
     // Vim Jump keys
-    test('Vim: 0 maps to firstPage', () {
+    test('Vim: 0 does not map to any action (gg not implemented yet)', () {
       final input = KeyInput(PhysicalKeyboardKey.digit0);
-      expect(service.getAction(input, AppMode.vim), ViewerAction.firstPage);
+      expect(service.getAction(input, AppMode.vim), isNull);
     });
 
     test('Vim: G maps to lastPage', () {
       final input = KeyInput(PhysicalKeyboardKey.keyG, isShift: true);
       expect(service.getAction(input, AppMode.vim), ViewerAction.lastPage);
+    });
+
+    test('Vim: Ctrl+0 maps to zoomReset', () {
+      final input = KeyInput(PhysicalKeyboardKey.digit0, isControl: true);
+      expect(service.getAction(input, AppMode.vim), ViewerAction.zoomReset);
     });
 
     // Numeric Percentage Jumps
