@@ -19,21 +19,19 @@ class PdfViewerPage extends ConsumerStatefulWidget {
 
 class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
-  // Removed: late final PdfTextSearcher _textSearcher;
 
   // ggキーシーケンス検出用
   bool _waitingForSecondG = false;
   Timer? _ggSequenceTimer;
 
-  @override
-  void initState() {
-    super.initState();
-    // Removed: _textSearcher = PdfTextSearcher(_controller);
-  }
+  // :eキーシーケンス検出用（Vimモード）
+  bool _waitingForColonE = false;
+  Timer? _colonSequenceTimer;
 
   @override
   void dispose() {
     _ggSequenceTimer?.cancel();
+    _colonSequenceTimer?.cancel();
     super.dispose();
   }
 
@@ -62,6 +60,33 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     }
   }
 
+  void _resetColonSequence() {
+    _waitingForColonE = false;
+    _colonSequenceTimer?.cancel();
+    _colonSequenceTimer = null;
+  }
+
+  void _handleColonKey() {
+    // :が押された -> eを待つ
+    _waitingForColonE = true;
+    _colonSequenceTimer = Timer(const Duration(milliseconds: 2000), () {
+      // タイムアウトしたら状態をリセット
+      if (mounted) {
+        setState(() {
+          _waitingForColonE = false;
+        });
+      }
+    });
+  }
+
+  void _handleEKey() {
+    if (_waitingForColonE) {
+      // :eシーケンス完了 -> ファイルを開く
+      _resetColonSequence();
+      _pickFile();
+    }
+  }
+
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -75,7 +100,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error opening file: $e"),
+            content: Text('ファイルを開けませんでした: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -102,22 +127,151 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       }
     });
 
+    // 共通のキーイベントハンドラー（Cmd + O など）
+    KeyEventResult handleKeyEvent(FocusNode node, KeyEvent event) {
+      if (event is KeyDownEvent) {
+        final isControl = HardwareKeyboard.instance.isControlPressed;
+        final isMeta = HardwareKeyboard.instance.isMetaPressed;
+        final isAlt = HardwareKeyboard.instance.isAltPressed;
+        final isShift = HardwareKeyboard.instance.isShiftPressed;
+
+        // 修飾キー自体は無視
+        if (event.physicalKey == PhysicalKeyboardKey.controlLeft ||
+            event.physicalKey == PhysicalKeyboardKey.controlRight ||
+            event.physicalKey == PhysicalKeyboardKey.shiftLeft ||
+            event.physicalKey == PhysicalKeyboardKey.shiftRight ||
+            event.physicalKey == PhysicalKeyboardKey.altLeft ||
+            event.physicalKey == PhysicalKeyboardKey.altRight ||
+            event.physicalKey == PhysicalKeyboardKey.metaLeft ||
+            event.physicalKey == PhysicalKeyboardKey.metaRight) {
+          return KeyEventResult.ignored;
+        }
+
+        final input = KeyInput(
+          event.physicalKey,
+          isControl: isControl,
+          isMeta: isMeta,
+          isAlt: isAlt,
+          isShift: isShift,
+        );
+
+        final action = keyService.getAction(input, state.mode);
+        if (action != null) {
+          _handleAction(action);
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    }
+
     if (state.filePath == null) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("No PDF opened"),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _pickFile,
-                child: const Text("Open File"),
-              ),
-            ],
+        body: Focus(
+          autofocus: true,
+          onKeyEvent: handleKeyEvent,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('PDFファイルが開かれていません'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _pickFile,
+                  child: const Text('ファイルを開く'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Cmd + O でもファイルを開けます',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ),
       );
+    }
+
+    // PDFビューアー用のキーイベントハンドラー（Vimシーケンスなど追加）
+    KeyEventResult handlePdfViewerKeyEvent(FocusNode node, KeyEvent event) {
+      if (state.isSearchActive) return KeyEventResult.ignored;
+
+      if (event is KeyDownEvent) {
+        final isControl = HardwareKeyboard.instance.isControlPressed;
+        final isMeta = HardwareKeyboard.instance.isMetaPressed;
+        final isAlt = HardwareKeyboard.instance.isAltPressed;
+        final isShift = HardwareKeyboard.instance.isShiftPressed;
+
+        // 修飾キー自体は無視
+        if (event.physicalKey == PhysicalKeyboardKey.controlLeft ||
+            event.physicalKey == PhysicalKeyboardKey.controlRight ||
+            event.physicalKey == PhysicalKeyboardKey.shiftLeft ||
+            event.physicalKey == PhysicalKeyboardKey.shiftRight ||
+            event.physicalKey == PhysicalKeyboardKey.altLeft ||
+            event.physicalKey == PhysicalKeyboardKey.altRight ||
+            event.physicalKey == PhysicalKeyboardKey.metaLeft ||
+            event.physicalKey == PhysicalKeyboardKey.metaRight) {
+          return KeyEventResult.ignored;
+        }
+
+        // Vimモードで:eシーケンス検出
+        if (state.mode == AppMode.vim) {
+          // :が押された場合（Shift + ;）
+          if (event.physicalKey == PhysicalKeyboardKey.semicolon &&
+              !isControl &&
+              !isMeta &&
+              !isAlt &&
+              isShift) {
+            _handleColonKey();
+            return KeyEventResult.handled;
+          }
+          // eが押された場合（:待機中、修飾キーなし）
+          if (event.physicalKey == PhysicalKeyboardKey.keyE &&
+              !isControl &&
+              !isMeta &&
+              !isAlt &&
+              !isShift) {
+            if (_waitingForColonE) {
+              _handleEKey();
+              return KeyEventResult.handled;
+            }
+          }
+          // Escキーで:シーケンスをキャンセル
+          if (event.physicalKey == PhysicalKeyboardKey.escape &&
+              _waitingForColonE) {
+            _resetColonSequence();
+            return KeyEventResult.handled;
+          }
+        }
+
+        // Vimモードでggシーケンス検出（修飾キーなしのgキーのみ）
+        if (state.mode == AppMode.vim &&
+            event.physicalKey == PhysicalKeyboardKey.keyG &&
+            !isControl &&
+            !isMeta &&
+            !isAlt &&
+            !isShift) {
+          _handleGKey();
+          return KeyEventResult.handled;
+        }
+
+        // 他のキーが押されたらシーケンスをリセット
+        if (_waitingForSecondG) {
+          _resetGgSequence();
+        }
+        if (_waitingForColonE &&
+            !(event.physicalKey == PhysicalKeyboardKey.keyE &&
+                !isControl &&
+                !isMeta &&
+                !isAlt &&
+                !isShift) &&
+            !(event.physicalKey == PhysicalKeyboardKey.escape)) {
+          _resetColonSequence();
+        }
+
+        // 共通のキーイベント処理
+        return handleKeyEvent(node, event);
+      }
+      return KeyEventResult.ignored;
     }
 
     return Scaffold(
@@ -125,42 +279,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         children: [
           Focus(
             autofocus: true,
-            onKeyEvent: (node, event) {
-              if (state.isSearchActive) return KeyEventResult.ignored;
-
-              if (event is KeyDownEvent) {
-                final input = KeyInput(
-                  event.physicalKey,
-                  isControl: HardwareKeyboard.instance.isControlPressed,
-                  isMeta: HardwareKeyboard.instance.isMetaPressed,
-                  isAlt: HardwareKeyboard.instance.isAltPressed,
-                  isShift: HardwareKeyboard.instance.isShiftPressed,
-                );
-
-                // Vimモードでggシーケンス検出（修飾キーなしのgキーのみ）
-                if (state.mode == AppMode.vim &&
-                    event.physicalKey == PhysicalKeyboardKey.keyG &&
-                    !HardwareKeyboard.instance.isControlPressed &&
-                    !HardwareKeyboard.instance.isMetaPressed &&
-                    !HardwareKeyboard.instance.isAltPressed &&
-                    !HardwareKeyboard.instance.isShiftPressed) {
-                  _handleGKey();
-                  return KeyEventResult.handled;
-                }
-
-                // 他のキーが押されたらggシーケンスをリセット
-                if (_waitingForSecondG) {
-                  _resetGgSequence();
-                }
-
-                final action = keyService.getAction(input, state.mode);
-                if (action != null) {
-                  _handleAction(action);
-                  return KeyEventResult.handled;
-                }
-              }
-              return KeyEventResult.ignored;
-            },
+            onKeyEvent: handlePdfViewerKeyEvent,
             child: PdfViewer.file(
               state.filePath!,
               controller: _controller,
@@ -191,18 +310,12 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                           autofocus: true,
                           decoration: const InputDecoration(
                             border: InputBorder.none,
-                            hintText: 'Search...',
+                            hintText: '検索...',
                           ),
                           onSubmitted: (value) {
                             if (value.isNotEmpty) {
-                              // Simple search attempt if API allows
-                              // If not, just show message "Search Logic Pending"
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "Search logic implementation disabled due to API mismatch. Please update pdfrx.",
-                                  ),
-                                ),
+                                const SnackBar(content: Text('検索機能は現在実装中です。')),
                               );
                             }
                           },
@@ -226,10 +339,10 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           children: [
             const SizedBox(width: 16),
             Text(
-              "Page: ${state.pageNumber} / ${_controller.isReady ? _controller.pageCount : '?'}",
+              'ページ: ${state.pageNumber} / ${_controller.isReady ? _controller.pageCount : '?'}',
             ),
             const SizedBox(width: 16),
-            Text("Zoom: ${(state.zoom * 100).toInt()}%"),
+            Text('ズーム: ${(state.zoom * 100).toInt()}%'),
             const Spacer(),
             InkWell(
               onTap: () => ref.read(viewerProvider.notifier).toggleMode(),
@@ -239,7 +352,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                   vertical: 4.0,
                 ),
                 child: Text(
-                  "Mode: ${state.mode.name.toUpperCase()}",
+                  'モード: ${state.mode.name.toUpperCase()}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -287,10 +400,8 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         notifier.toggleMode();
         break;
       case ViewerAction.fitToScreen:
-        // Treat as "Actual Size" or "Default" for now
         notifier.setZoom(1.0);
         break;
-
       case ViewerAction.jumpPage10:
         _jumpToPercent(0.1);
         break;

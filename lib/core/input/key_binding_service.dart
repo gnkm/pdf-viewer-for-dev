@@ -29,6 +29,10 @@ class KeyBindingService {
       const KeyInput(PhysicalKeyboardKey.keyS, isControl: true):
           ViewerAction.search,
 
+      // File operations (Cmd + O for open file - macOS では C-x C-f が使えないため)
+      const KeyInput(PhysicalKeyboardKey.keyO, isMeta: true):
+          ViewerAction.openFile,
+
       // Zoom operations (Cmd + +/-, Cmd + 0, Cmd + Shift + ;)
       const KeyInput(PhysicalKeyboardKey.equal, isMeta: true, isShift: true):
           ViewerAction.zoomIn, // Cmd + +
@@ -73,6 +77,10 @@ class KeyBindingService {
       // Arrow Keys
       const KeyInput(PhysicalKeyboardKey.arrowDown): ViewerAction.nextPage,
       const KeyInput(PhysicalKeyboardKey.arrowUp): ViewerAction.previousPage,
+
+      // File operations (Cmd + O for open file)
+      const KeyInput(PhysicalKeyboardKey.keyO, isMeta: true):
+          ViewerAction.openFile,
 
       // Zoom operations (Ctrl + +/-, Ctrl + 0)
       const KeyInput(PhysicalKeyboardKey.equal, isControl: true, isShift: true):
