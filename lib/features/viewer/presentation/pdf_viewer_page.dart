@@ -67,6 +67,12 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
              _controller.goToPage(pageNumber: next.pageNumber);
          }
       }
+      // ズーム値が変更された場合、PdfViewerControllerに反映
+      if (previous?.zoom != next.zoom && _controller.isReady) {
+        // 現在の中心位置をズームの中心として使用
+        final centerPosition = _controller.centerPosition;
+        _controller.setZoom(centerPosition, next.zoom);
+      }
     });
 
     if (state.filePath == null) {
