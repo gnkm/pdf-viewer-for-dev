@@ -2,6 +2,7 @@
 // pre-commitフック用のDartスクリプト
 // lint、テスト、セキュリティチェックを実行
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -131,36 +132,8 @@ Future<bool> _runSecurityCheck() async {
     print('   ${outdatedResult.stderr}');
   }
 
-  // 2. 依存関係の脆弱性チェック（OSVデータベース）
-  print('  🔒 脆弱性スキャン中...');
-  try {
-    final vulnerabilityCheck = await _checkVulnerabilities();
-    if (!vulnerabilityCheck) {
-      allChecksPassed = false;
-    }
-  } catch (e) {
-    print('    ⚠️  脆弱性チェック中にエラーが発生しました: $e');
-    // ネットワークエラーなどは警告として扱う
-  }
-
-  // 3. pub.devでのパッケージ検証
-  print('  📋 パッケージの信頼性確認中...');
-  try {
-    final packageCheck = await _verifyPackages();
-    if (!packageCheck) {
-      allChecksPassed = false;
-    }
-  } catch (e) {
-    print('    ⚠️  パッケージ検証中にエラーが発生しました: $e');
-    // ネットワークエラーなどは警告として扱う
-  }
-
-  return allChecksPassed;
-}
-
-/// OSVデータベースを使用して脆弱性をチェック
-Future<bool> _checkVulnerabilities() async {
-  // 依存関係リストを取得
+  // 依存関係リストを1回だけ取得（重複を避ける）
+  print('  📋 依存関係リストを取得中...');
   final depsResult = await Process.run('dart', [
     'pub',
     'deps',
@@ -180,45 +153,87 @@ Future<bool> _checkVulnerabilities() async {
     return true;
   }
 
+  // 2. 依存関係の脆弱性チェック（OSVデータベース）
+  print('  🔒 脆弱性スキャン中...');
+  try {
+    final vulnerabilityCheck = await _checkVulnerabilities(packages);
+    if (!vulnerabilityCheck) {
+      allChecksPassed = false;
+    }
+  } catch (e) {
+    print('    ⚠️  脆弱性チェック中にエラーが発生しました: $e');
+    // ネットワークエラーなどは警告として扱う
+  }
+
+  // 3. pub.devでのパッケージ検証
+  print('  📋 パッケージの信頼性確認中...');
+  try {
+    final packageCheck = await _verifyPackages(packages);
+    if (!packageCheck) {
+      allChecksPassed = false;
+    }
+  } catch (e) {
+    print('    ⚠️  パッケージ検証中にエラーが発生しました: $e');
+    // ネットワークエラーなどは警告として扱う
+  }
+
+  return allChecksPassed;
+}
+
+/// OSVデータベースを使用して脆弱性をチェック
+Future<bool> _checkVulnerabilities(List<Map<String, String>> packages) async {
+  if (packages.isEmpty) {
+    print('    ✅ チェック対象のパッケージがありません');
+    return true;
+  }
+
   print('    📦 ${packages.length}個のパッケージをチェック中...');
 
-  final httpClient = HttpClient();
+  final httpClient = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10)
+    ..idleTimeout = const Duration(seconds: 10);
   int vulnerabilityCount = 0;
   final vulnerablePackages = <String>[];
+  int checkedCount = 0;
+  int errorCount = 0;
 
   try {
-    for (final package in packages) {
-      final packageName = package['name'] as String;
-      final packageVersion = package['version'] as String;
+    // 並列処理でパフォーマンスを向上（最大10並列）
+    const maxConcurrency = 10;
+    for (var i = 0; i < packages.length; i += maxConcurrency) {
+      final chunk = packages.skip(i).take(maxConcurrency).toList();
+      final results = await Future.wait(
+        chunk.map((package) async {
+          final packageName = package['name'] as String;
+          final packageVersion = package['version'] as String;
 
-      // OSV APIにクエリを送信
-      try {
-        final request = await httpClient.postUrl(
-          Uri.parse('https://api.osv.dev/v1/query'),
-        );
-        request.headers.set('Content-Type', 'application/json');
-        request.write(
-          jsonEncode({
-            'package': {'name': packageName, 'ecosystem': 'Pub'},
-            'version': packageVersion,
-          }),
-        );
-        final response = await request.close();
-        final responseBody = await response.transform(utf8.decoder).join();
-        final responseData = jsonDecode(responseBody) as Map;
-
-        if (responseData.containsKey('vulns') &&
-            (responseData['vulns'] as List).isNotEmpty) {
-          vulnerabilityCount++;
-          vulnerablePackages.add('$packageName@$packageVersion');
-        }
-      } catch (e) {
-        // 個別のパッケージチェックエラーは無視
-        continue;
-      }
+          try {
+            final result = await _checkSinglePackageVulnerability(
+              httpClient,
+              packageName,
+              packageVersion,
+            );
+            checkedCount++;
+            if (result != null) {
+              if (result) {
+                vulnerabilityCount++;
+                vulnerablePackages.add('$packageName@$packageVersion');
+              }
+            } else {
+              errorCount++;
+            }
+          } catch (e) {
+            errorCount++;
+          }
+        }),
+      );
     }
   } finally {
     httpClient.close();
+  }
+
+  if (errorCount > 0) {
+    print('    ⚠️  $errorCount個のパッケージのチェック中にエラーが発生しました');
   }
 
   if (vulnerabilityCount > 0) {
@@ -229,69 +244,87 @@ Future<bool> _checkVulnerabilities() async {
     print('    💡 詳細は https://osv.dev/ で確認してください');
     return false;
   } else {
-    print('    ✅ 既知の脆弱性は見つかりませんでした');
+    print('    ✅ 既知の脆弱性は見つかりませんでした ($checkedCount個チェック済み)');
     return true;
   }
 }
 
-/// pub.devでパッケージの信頼性を確認
-Future<bool> _verifyPackages() async {
-  final depsResult = await Process.run('dart', [
-    'pub',
-    'deps',
-    '--json',
-  ], runInShell: true);
+/// 単一パッケージの脆弱性をチェック
+Future<bool?> _checkSinglePackageVulnerability(
+  HttpClient httpClient,
+  String packageName,
+  String packageVersion,
+) async {
+  try {
+    final request = await httpClient
+        .postUrl(Uri.parse('https://api.osv.dev/v1/query'))
+        .timeout(const Duration(seconds: 10));
+    request.headers.set('Content-Type', 'application/json');
+    request.write(
+      jsonEncode({
+        'package': {'name': packageName, 'ecosystem': 'Pub'},
+        'version': packageVersion,
+      }),
+    );
+    final response = await request.close();
+    final responseBody = await response.transform(utf8.decoder).join();
+    final responseData = jsonDecode(responseBody) as Map;
 
-  if (depsResult.exitCode != 0) {
-    return true; // エラーは警告として扱う
+    if (responseData.containsKey('vulns') &&
+        (responseData['vulns'] as List).isNotEmpty) {
+      return true; // 脆弱性あり
+    }
+    return false; // 脆弱性なし
+  } catch (e) {
+    // エラーはnullを返して上位でカウント
+    return null;
   }
+}
 
-  final depsJson = jsonDecode(depsResult.stdout.toString()) as Map;
-  final packages = _extractPackages(depsJson);
-
+/// pub.devでパッケージの信頼性を確認
+Future<bool> _verifyPackages(List<Map<String, String>> packages) async {
   if (packages.isEmpty) {
     return true;
   }
 
-  final httpClient = HttpClient();
+  final httpClient = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10)
+    ..idleTimeout = const Duration(seconds: 10);
   final suspiciousPackages = <String>[];
+  int checkedCount = 0;
+  int errorCount = 0;
 
   try {
-    for (final package in packages) {
-      final packageName = package['name'] as String;
+    // 並列処理でパフォーマンスを向上（最大10並列）
+    const maxConcurrency = 10;
+    for (var i = 0; i < packages.length; i += maxConcurrency) {
+      final chunk = packages.skip(i).take(maxConcurrency).toList();
+      await Future.wait(
+        chunk.map((package) async {
+          final packageName = package['name'] as String;
 
-      // pub.dev APIでパッケージ情報を取得
-      try {
-        final request = await httpClient.getUrl(
-          Uri.parse('https://pub.dev/api/packages/$packageName'),
-        );
-        final response = await request.close();
-
-        if (response.statusCode == 404) {
-          // pub.devに存在しないパッケージは警告
-          suspiciousPackages.add('$packageName (pub.devに存在しません)');
-        } else if (response.statusCode == 200) {
-          final responseBody = await response.transform(utf8.decoder).join();
-          final packageData = jsonDecode(responseBody) as Map;
-
-          // パッケージのスコアを確認（低いスコアは警告）
-          final score = packageData['score'] as Map?;
-          if (score != null) {
-            final popularityScore = score['popularityScore'] as num?;
-            if (popularityScore != null && popularityScore < 0.3) {
-              suspiciousPackages.add(
-                '$packageName (人気度スコアが低い: ${popularityScore.toStringAsFixed(2)})',
-              );
+          try {
+            final result = await _checkSinglePackageReliability(
+              httpClient,
+              packageName,
+            );
+            checkedCount++;
+            if (result != null) {
+              suspiciousPackages.add(result);
             }
+          } catch (e) {
+            errorCount++;
+            checkedCount++;
           }
-        }
-      } catch (e) {
-        // 個別のパッケージチェックエラーは無視
-        continue;
-      }
+        }),
+      );
     }
   } finally {
     httpClient.close();
+  }
+
+  if (errorCount > 0) {
+    print('    ⚠️  $errorCount個のパッケージのチェック中にエラーが発生しました');
   }
 
   if (suspiciousPackages.isNotEmpty) {
@@ -302,10 +335,44 @@ Future<bool> _verifyPackages() async {
     print('    💡 詳細は https://pub.dev/ で確認してください');
     // 警告のみで、失敗にはしない
   } else {
-    print('    ✅ すべてのパッケージがpub.devで確認できました');
+    print('    ✅ すべてのパッケージがpub.devで確認できました ($checkedCount個チェック済み)');
   }
 
   return true;
+}
+
+/// 単一パッケージの信頼性をチェック
+Future<String?> _checkSinglePackageReliability(
+  HttpClient httpClient,
+  String packageName,
+) async {
+  try {
+    final request = await httpClient
+        .getUrl(Uri.parse('https://pub.dev/api/packages/$packageName'))
+        .timeout(const Duration(seconds: 10));
+    final response = await request.close();
+
+    if (response.statusCode == 404) {
+      // pub.devに存在しないパッケージは警告
+      return '$packageName (pub.devに存在しません)';
+    } else if (response.statusCode == 200) {
+      final responseBody = await response.transform(utf8.decoder).join();
+      final packageData = jsonDecode(responseBody) as Map;
+
+      // パッケージのスコアを確認（低いスコアは警告）
+      final score = packageData['score'] as Map?;
+      if (score != null) {
+        final popularityScore = score['popularityScore'] as num?;
+        if (popularityScore != null && popularityScore < 0.3) {
+          return '$packageName (人気度スコアが低い: ${popularityScore.toStringAsFixed(2)})';
+        }
+      }
+    }
+    return null; // 問題なし
+  } catch (e) {
+    // エラーはnullを返して上位でカウント
+    return null;
+  }
 }
 
 /// 依存関係JSONからパッケージ情報を抽出
