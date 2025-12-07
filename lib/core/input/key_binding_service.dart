@@ -4,11 +4,11 @@ import 'input_models.dart';
 import 'viewer_action.dart';
 
 class KeyBindingService {
-  final Map<AppMode, Map<KeyInput, ViewerAction>> _bindings = {};
-
   KeyBindingService() {
     _initBindings();
   }
+
+  final Map<AppMode, Map<KeyInput, ViewerAction>> _bindings = {};
 
   ViewerAction? getAction(KeyInput input, AppMode mode) {
     return _bindings[mode]?[input];

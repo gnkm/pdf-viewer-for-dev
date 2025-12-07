@@ -19,7 +19,7 @@ void main(List<String> args) async {
   if (args.isNotEmpty) {
     // Basic argument handling: assume first arg is file path
     final path = args.first;
-    if (await File(path).exists()) {
+    if (File(path).existsSync()) {
       cliFile = File(path).absolute.path;
     }
   }
@@ -47,10 +47,10 @@ void main(List<String> args) async {
 }
 
 class MyApp extends ConsumerStatefulWidget {
+  const MyApp({super.key, required this.config, this.initialFile});
+
   final ConfigModel config;
   final String? initialFile;
-
-  const MyApp({super.key, required this.config, this.initialFile});
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
@@ -74,8 +74,12 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
         final session = widget.config.lastSession!;
         if (session.filePath != null && File(session.filePath!).existsSync()) {
           notifier.loadFile(session.filePath!);
-          if (session.pageNumber != null) notifier.setPage(session.pageNumber!);
-          if (session.zoom != null) notifier.setZoom(session.zoom!);
+          if (session.pageNumber != null) {
+            notifier.setPage(session.pageNumber!);
+          }
+          if (session.zoom != null) {
+            notifier.setZoom(session.zoom!);
+          }
         }
       }
     });

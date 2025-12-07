@@ -4,14 +4,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdfrx/pdfrx.dart';
-
 import 'package:pdf_viewer_for_dev/core/config/app_mode.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_models.dart';
 import 'package:pdf_viewer_for_dev/core/input/input_providers.dart';
 import 'package:pdf_viewer_for_dev/core/input/viewer_action.dart';
 import 'package:pdf_viewer_for_dev/features/viewer/application/viewer_state.dart'
     show SearchMatch, ViewerState, viewerProvider;
+import 'package:pdfrx/pdfrx.dart';
 
 class PdfViewerPage extends ConsumerStatefulWidget {
   const PdfViewerPage({super.key});

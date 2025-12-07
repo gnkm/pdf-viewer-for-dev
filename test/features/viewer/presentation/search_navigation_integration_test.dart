@@ -20,7 +20,7 @@ void main() {
       expect(container.read(viewerProvider).isSearchActive, false);
 
       // 「/」キーがViewerAction.searchにマッピングされることを確認
-      final input = KeyInput(PhysicalKeyboardKey.slash);
+      const input = KeyInput(PhysicalKeyboardKey.slash);
       final action = keyService.getAction(input, AppMode.vim);
       expect(action, ViewerAction.search);
 

@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
 import 'package:pdf_viewer_for_dev/core/config/app_mode.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'viewer_state.freezed.dart';
 part 'viewer_state.g.dart';
@@ -66,14 +65,18 @@ class ViewerNotifier extends _$ViewerNotifier {
   }
 
   void nextSearchMatch() {
-    if (state.searchMatches.isEmpty) return;
+    if (state.searchMatches.isEmpty) {
+      return;
+    }
     final currentIndex = state.currentSearchMatchIndex ?? -1;
     final nextIndex = (currentIndex + 1) % state.searchMatches.length;
     setCurrentSearchMatchIndex(nextIndex);
   }
 
   void previousSearchMatch() {
-    if (state.searchMatches.isEmpty) return;
+    if (state.searchMatches.isEmpty) {
+      return;
+    }
     final currentIndex = state.currentSearchMatchIndex ?? 0;
     final prevIndex =
         (currentIndex - 1 + state.searchMatches.length) %

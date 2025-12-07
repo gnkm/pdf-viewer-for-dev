@@ -46,7 +46,7 @@ class ConfigService {
   static Future<ConfigModel> load() async {
     try {
       final file = await _getConfigFile();
-      if (await file.exists()) {
+      if (file.existsSync()) {
         final content = await file.readAsString();
         return parseConfig(content);
       }
@@ -59,7 +59,7 @@ class ConfigService {
   static Future<void> save(ConfigModel config) async {
     try {
       final file = await _getConfigFile();
-      if (!await file.parent.exists()) {
+      if (!file.parent.existsSync()) {
         await file.parent.create(recursive: true);
       }
       await file.writeAsString(toToml(config));
