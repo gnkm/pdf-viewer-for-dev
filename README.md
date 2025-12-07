@@ -1,5 +1,10 @@
 # PDF Viewer for Developers (vfd)
 
+[![CI](https://github.com/gnkm/pdf-viewer-for-dev/actions/workflows/ci.yml/badge.svg)](https://github.com/gnkm/pdf-viewer-for-dev/actions/workflows/ci.yml)
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat&logo=flutter&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Linux%20|%20Windows-blue)
+![License](https://img.shields.io/github/license/gnkm/pdf-viewer-for-dev)
+
 開発者のための、キーボード操作に特化した高パフォーマンスな PDF ビューアーです。Emacs および Vim のキーバインドをサポートしています。
 
 ## 特徴
